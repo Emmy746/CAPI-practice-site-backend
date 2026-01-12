@@ -5,8 +5,7 @@ const fetch = require('node-fetch'); // install node-fetch
 const app = express();
 app.use(express.json());
 
-// const PIXEL_ID = '901838652265558';
-// const ACCESS_TOKEN = 'EAAbgPP6TXqQBQfqjZAmSTB3dfJ5gGGMJbi23ufXZCz0FDXUbixETlqOAlRESM6yDZCTU1SeKgH8ZBD1es7yTth5XHYsggj1rAZB5D2AQoKEqsGUK6UigocTzutgosuNZCuYtJxIMBq8cPPq4IfwU3AqcddEfY9RLdALFvhzTtPAMwWblsgw0YxPZB5HHhCHtQZDZD';
+
 const PIXEL_ID = process.env.PIXEL_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
