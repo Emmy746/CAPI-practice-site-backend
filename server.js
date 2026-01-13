@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
 const crypto = require('crypto');
 
 const app = express();
@@ -13,39 +12,32 @@ app.use(express.json());
 
 /* ──────────────── ENV VALIDATION ──────────────── */
 if (!process.env.PIXEL_ID || !process.env.ACCESS_TOKEN) {
-  console.error('❌ Missing PIXEL_ID or ACCESS_TOKEN in environment variables');
+  console.error('❌ Missing PIXEL_ID or ACCESS_TOKEN');
   process.exit(1);
 }
 
-/* ──────────────── ROUTES ──────────────── */
+/* ──────────────── ROUTE ──────────────── */
 app.post('/lead', async (req, res) => {
   try {
     const { email, event_id } = req.body;
 
     if (!email || !event_id) {
-      return res.status(400).json({
-        error: 'email and event_id are required'
-      });
+      return res.status(400).json({ error: 'email and event_id required' });
     }
 
-    // SHA256 hash (Meta requirement)
     const hashedEmail = crypto
       .createHash('sha256')
       .update(email.trim().toLowerCase())
       .digest('hex');
 
     const payload = {
-      data: [
-        {
-          event_name: 'Lead',
-          event_time: Math.floor(Date.now() / 1000),
-          event_id: event_id,
-          action_source: 'website',
-          user_data: {
-            em: hashedEmail
-          }
-        }
-      ]
+      data: [{
+        event_name: 'Lead',
+        event_time: Math.floor(Date.now() / 1000),
+        event_id,
+        action_source: 'website',
+        user_data: { em: hashedEmail }
+      }]
     };
 
     const response = await fetch(
@@ -58,26 +50,16 @@ app.post('/lead', async (req, res) => {
     );
 
     const result = await response.json();
+    console.log('✅ Meta response:', result);
 
-    console.log('✅ Meta CAPI response:', result);
+    res.status(200).json({ success: true, meta: result });
 
-    return res.status(200).json({
-      success: true,
-      meta: result
-    });
-
-  } catch (error) {
-    console.error('🔥 CAPI ERROR:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Internal Server Error'
-    });
+  } catch (err) {
+    console.error('🔥 CAPI ERROR:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
 /* ──────────────── SERVER ──────────────── */
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Running on port ${PORT}`));
