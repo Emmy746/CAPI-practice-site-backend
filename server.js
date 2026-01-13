@@ -7,43 +7,49 @@ const crypto = require('crypto');
 
 const app = express();
 
-/* CORS — MUST COME FIRST */
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-}));
-
+/* ──────────────── MIDDLEWARE ──────────────── */
+app.use(cors());
 app.use(express.json());
 
-const PIXEL_ID = process.env.PIXEL_ID;
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+/* ──────────────── ENV VALIDATION ──────────────── */
+if (!process.env.PIXEL_ID || !process.env.ACCESS_TOKEN) {
+  console.error('❌ Missing PIXEL_ID or ACCESS_TOKEN in environment variables');
+  process.exit(1);
+}
 
+/* ──────────────── ROUTES ──────────────── */
 app.post('/lead', async (req, res) => {
   try {
-    const { email, location, event_id } = req.body;
+    const { email, event_id } = req.body;
 
-    console.log('Incoming lead:', email, location, event_id);
+    if (!email || !event_id) {
+      return res.status(400).json({
+        error: 'email and event_id are required'
+      });
+    }
 
+    // SHA256 hash (Meta requirement)
     const hashedEmail = crypto
       .createHash('sha256')
       .update(email.trim().toLowerCase())
       .digest('hex');
 
     const payload = {
-      data: [{
-        event_name: 'Lead',
-        event_time: Math.floor(Date.now() / 1000),
-        event_id,
-        action_source: 'website',
-        user_data: {
-          em: hashedEmail
+      data: [
+        {
+          event_name: 'Lead',
+          event_time: Math.floor(Date.now() / 1000),
+          event_id: event_id,
+          action_source: 'website',
+          user_data: {
+            em: hashedEmail
+          }
         }
-      }]
+      ]
     };
 
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/${PIXEL_ID}/events?access_token=${ACCESS_TOKEN}`,
+      `https://graph.facebook.com/v18.0/${process.env.PIXEL_ID}/events?access_token=${process.env.ACCESS_TOKEN}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,15 +58,26 @@ app.post('/lead', async (req, res) => {
     );
 
     const result = await response.json();
-    console.log('Meta response:', result);
 
-    res.status(200).json({ success: true });
+    console.log('✅ Meta CAPI response:', result);
 
-  } catch (err) {
-    console.error('CAPI error:', err);
-    res.status(500).json({ success: false });
+    return res.status(200).json({
+      success: true,
+      meta: result
+    });
+
+  } catch (error) {
+    console.error('🔥 CAPI ERROR:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal Server Error'
+    });
   }
 });
 
+/* ──────────────── SERVER ──────────────── */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
